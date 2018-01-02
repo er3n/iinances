@@ -1,0 +1,2 @@
+# iinances
+Cloud Coin bot
