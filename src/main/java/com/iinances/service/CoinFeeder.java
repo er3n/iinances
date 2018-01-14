@@ -1,16 +1,26 @@
 package com.iinances.service;
 
 import com.iinances.domain.Coin;
+import com.iinances.repository.CoinRepository;
+import com.iinances.service.constant.Currency;
 import com.iinances.service.dto.cc.CoinListResponse;
 import com.iinances.service.mapper.CoinMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import javax.annotation.PostConstruct;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 
 @Component
@@ -18,38 +28,38 @@ public class CoinFeeder {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    private final WebClient webClient;
-    private final CoinService coinService;
+    private WebClient client;
+    private final CoinRepository coinRepository;
     private final CoinMapper coinMapper;
 
-    public CoinFeeder(WebClient webClient, CoinService coinService, CoinMapper coinMapper) {
-        this.webClient = webClient;
-        this.coinService = coinService;
+    public CoinFeeder(CoinRepository coinRepository, CoinMapper coinMapper) {
+        this.coinRepository = coinRepository;
         this.coinMapper = coinMapper;
+    }
+
+    @PostConstruct
+    public void init() {
+        this.client = WebClient
+                .create("https://www.cryptocompare.com")
+                .mutate()
+                .build();
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void run(ApplicationEvent applicationEvent) {
 
-        webClient
+        client
                 .get()
                 .uri("/api/data/coinlist/")
                 .retrieve()
                 .bodyToMono(CoinListResponse.class)
                 .filter(response -> response.getResponse().equals("Success"))
-                .map(coinListResponse ->
-                        fetchCoins(coinListResponse)
-                        .subscribe()
-                )
-                .subscribe(System.out::println);
+                .flatMapMany(coinListResponse -> Flux.fromIterable(coinListResponse.getCoinMap().values()))
+                .flatMap(coinResponse -> Mono.just(coinMapper.toEntity(coinResponse)))
+                .flatMap(coin -> coinRepository.findById(coin.getId()).switchIfEmpty(coinRepository.save(coin)))
+                .subscribe(exchange -> logger.info(exchange.toString()));
 
 
-    }
-
-    public Flux<Coin> fetchCoins(CoinListResponse coinListResponse) {
-        logger.info(coinListResponse.toString());
-        return Flux.fromIterable(coinListResponse.getCoinMap().values())
-                .flatMap(coinResponse -> coinService.saveIfCoinExist(coinMapper.toEntity(coinResponse)));
     }
 
 }
