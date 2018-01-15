@@ -15,6 +15,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
 import javax.annotation.PostConstruct;
+import java.time.Duration;
 
 
 @Component
@@ -47,10 +48,13 @@ public class ExchangeFeeder {
                 .uri("/latest?base=USD")
                 .retrieve()
                 .bodyToMono(ExchangeResponse.class)
+                .delayElement(Duration.ofDays(1))
                 .flatMapMany(exchangeResponse -> Flux.fromIterable(exchangeMapper.toEntity(exchangeResponse)))
                 .flatMap(exchangeRate -> exchangeRepository.findById(exchangeRate.getId()).switchIfEmpty(exchangeRepository.save(exchangeRate)))
-                .subscribe(exchange -> logger.info(exchange.toString()));
-
+                .repeat()
+                .subscribe(exchange -> logger.debug(exchange.toString()),
+                        e -> logger.error(e.toString(), e),
+                        () -> logger.info("Exchange feed completed."));
 
     }
 

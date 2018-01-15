@@ -47,7 +47,7 @@ public class CoinFeeder {
 
     @EventListener(ApplicationReadyEvent.class)
     public void run(ApplicationEvent applicationEvent) {
-
+/*
         client
                 .get()
                 .uri("/api/data/coinlist/")
@@ -57,8 +57,10 @@ public class CoinFeeder {
                 .flatMapMany(coinListResponse -> Flux.fromIterable(coinListResponse.getCoinMap().values()))
                 .flatMap(coinResponse -> Mono.just(coinMapper.toEntity(coinResponse)))
                 .flatMap(coin -> coinRepository.findById(coin.getId()).switchIfEmpty(coinRepository.save(coin)))
-                .subscribe(exchange -> logger.info(exchange.toString()));
-
+                .subscribe(exchange -> logger.debug(exchange.toString()),
+                        e -> logger.error(e.toString(), e),
+                        ()-> logger.info("Coin feed completed."));
+*/
 
     }
 

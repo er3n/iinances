@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 @Component
 public class ExchangeMapper {
 
-    private DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-dd-MM");
+    private DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     public List<ExchangeRate> toEntity(ExchangeResponse dto) {
         LocalDate dateCreated = LocalDate.parse(dto.getDate(), dateFormat);
